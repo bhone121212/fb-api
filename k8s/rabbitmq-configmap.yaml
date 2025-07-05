@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-configmap
+  namespace: crawler-apps
+data:
+  rabbitmq.config: |
+    listeners.tcp.default = 5672
+    management.listener.port = 15672
+    hipe_compile: false
+    timezone = Asia/Yangon

@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    component: rabbitmq
+  name: rabbitmq-service
+  namespace: crawler-apps
+spec:
+  ports:
+    - name: rabbitmq
+      port: 5672  # Port used by RabbitMQ
+      targetPort: 5672
+    - name: abbitmq-management
+      port: 15672  # Port used by RabbitMQ management interface
+      targetPort: 15672
+  selector:
+    app: taskQueue
+    component: rabbitmq

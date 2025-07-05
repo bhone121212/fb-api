@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  labels:
+    component: api
+  name: api-controller
+  namespace: crawler-apps
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: taskQueue
+        component: api
+    spec:
+      containers:
+        - name: api
+          image: mglue/fb-api:latest
+          env:
+            - name: FBS_DATABASE_POSTGRESQL_SERVICE_HOST
+              value: postgresql://fbs:yah7WUy1Oi8G@192.168.11.202:5432/fbs
+            - name: FBS_DATABASE_POSTGRESQL_SLAVE_SERVICE_HOST
+              value: postgresql://fbs:yah7WUy1Oi8G@192.168.11.202:5432/fbs
+#          volumeMounts:
+#            - mountPath: "/app/screenshots"
+#              name: screenshots-volume
+          ports:
+            - containerPort: 80
+
+          resources:
+            limits:
+              memory: "300Mi"
+              cpu: "100m"
+#      volumes:
+#        - name: screenshots-volume
+#          persistentVolumeClaim:
+#            claimName: screenshot-pvc

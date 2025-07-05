@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: crawler-apps
+  labels:
+    component: rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: taskQueue
+      component: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: taskQueue
+        component: rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq
+        ports:
+        - containerPort: 5672
+        - containerPort: 15672
+
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/rabbitmq/
+      volumes:
+      - name: config-volume
+        configMap:
+          name: rabbitmq-configmap
