@@ -41,7 +41,9 @@ pipeline {
                     // Create and activate a Python virtual environment without sudo
                     sh 'python3 -m venv venv'  // Create virtual environment
                     sh '. venv/bin/activate && pip install --upgrade pip'  // Upgrade pip
+
                     sh '. venv/bin/activate && pip install -r app/app/requirements.txt'  // Install dependencies
+
                 }
             }
         }
@@ -93,7 +95,7 @@ pipeline {
 
     post {
         success {
-            echo '✅ CI/CD Pipeline executed successfully!'
+            echo '✅ fbb-api CI/CD Pipeline executed successfully!'
         }
         failure {
             echo '❌ Pipeline failed. Check logs for issues.'
