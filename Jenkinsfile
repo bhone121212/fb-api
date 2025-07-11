@@ -41,9 +41,7 @@ pipeline {
                     // Create and activate a Python virtual environment without sudo
                     sh 'python3 -m venv venv'  // Create virtual environment
                     sh '. venv/bin/activate && pip install --upgrade pip'  // Upgrade pip
-
-                    sh '. venv/bin/activate && pip install -r app/app/requirements.txt'  // Install dependencies
-
+                    sh '. venv/bin/activate && pip install -r /app/requirements.txt'  // Install dependencies
                 }
             }
         }
@@ -77,15 +75,22 @@ pipeline {
                     script {
                         // Update deployment.yaml with the new image tag
                         sh '''
-                            sed -i "s|image:.*|image: $FULL_IMAGE|" k8s/deployment.yaml
+                            sed -i "s|image:.*|image: $FULL_IMAGE|" k8s/api-controller.yaml
 
                             git config --global user.email "jenkins@ci.local"
                             git config --global user.name "Jenkins CI"
 
-                            git add k8s/deployment.yaml
+                            git add k8s/api-controller.yaml
                             git commit -m "Update image to $FULL_IMAGE" || echo "No changes to commit"
-                            git remote set-url origin https://$GITHUB_TOKEN@github.com/bhone121212/Simple_NodeJS_App-main.git
+                            git remote set-url origin https://$GITHUB_TOKEN@github.com/bhone121212/fb-api.git
                             git push origin HEAD:main
+
+                            # Apply all Kubernetes YAML files (API + RabbitMQ services)
+                            kubectl apply -f k8s/api-service.yaml
+                            kubectl apply -f k8s/rabbitmq-configmap.yaml
+                            kubectl apply -f k8s/rabbitmq-controller.yaml
+                            kubectl apply -f k8s/rabbitmq-service.yaml
+
                         '''
                     }
                 }
