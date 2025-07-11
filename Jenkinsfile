@@ -30,22 +30,6 @@ pipeline {
             }
         }
 
-        // stage('Install Python Dependencies') {
-        //     steps {
-        //         script {
-        //             // Debug: Show current workspace files
-        //             sh 'ls -R'
-
-        //             // Create virtual environment and install dependencies
-        //             sh '''
-        //                 python3 -m venv venv
-        //                 . venv/bin/activate
-        //                 pip install --upgrade pip
-        //                 pip install -r app/requirements.txt
-        //             '''
-        //         }
-        //     }
-        // }
         stage('Install Python Dependencies') {
             steps {
                 script {
@@ -62,10 +46,12 @@ pipeline {
 
         stage('Run Tests') {
             steps {
-                sh '''
-                    . venv/bin/activate
-                    pytest || true
-                '''
+                script {
+                    sh '''
+                        . venv/bin/activate
+                        pytest || true
+                    '''
+                }
             }
         }
 
@@ -88,18 +74,16 @@ pipeline {
                 withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
                     script {
                         sh '''
-                            # Update image tag in deployment YAML
                             sed -i "s|image:.*|image: $FULL_IMAGE|" k8s/api-controller.yaml
 
-                            # Commit and push the update to GitHub
                             git config --global user.email "jenkins@ci.local"
                             git config --global user.name "Jenkins CI"
+
                             git add k8s/api-controller.yaml
                             git commit -m "Update image to $FULL_IMAGE" || echo "No changes to commit"
                             git remote set-url origin https://$GITHUB_TOKEN@github.com/bhone121212/fb-api.git
                             git push origin HEAD:main
 
-                            # Apply all Kubernetes services
                             kubectl apply -f k8s/api-service.yaml
                             kubectl apply -f k8s/rabbitmq-configmap.yaml
                             kubectl apply -f k8s/rabbitmq-controller.yaml
