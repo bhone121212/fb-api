@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: bhonebhone/fb-api:v204
+          image: bhonebhone/fb-api:v205
           env:
             - name: FBS_DATABASE_POSTGRESQL_SERVICE_HOST
               value: postgresql://fbs:yah7WUy1Oi8G@192.168.11.202:5432/fbs
