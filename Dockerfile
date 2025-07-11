@@ -1,4 +1,4 @@
-FROM tiangolo/uwsgi-nginx-flask:python3.8
+FROM docker.io/tiangolo/uwsgi-nginx-flask:python3.8
 
 # Set working dir for requirements
 WORKDIR /pysetup
