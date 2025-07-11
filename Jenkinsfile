@@ -34,7 +34,8 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        sudo apt-get update && sudo apt-get install -y python3 python3-venv python3-pip
+                        sudo apt-get update
+                        sudo apt-get install -y libpq-dev gcc python3-dev
                         python3 -m venv venv
                         . venv/bin/activate
                         pip install --upgrade pip
@@ -46,12 +47,7 @@ pipeline {
 
         stage('Run Tests') {
             steps {
-                script {
-                    sh '''
-                        . venv/bin/activate
-                        pytest || true
-                    '''
-                }
+                sh '. venv/bin/activate && pytest || true'
             }
         }
 
@@ -59,11 +55,9 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-cred', usernameVariable: 'REG_USER', passwordVariable: 'REG_PASS')]) {
                     script {
-                        sh '''
-                            echo "$REG_PASS" | sudo -S buildah login -u "$REG_USER" --password-stdin docker.io
-                            sudo buildah bud -t $FULL_IMAGE .
-                            sudo buildah push $FULL_IMAGE
-                        '''
+                        sh 'echo "$REG_PASS" | sudo -S buildah login -u "$REG_USER" --password-stdin docker.io'
+                        sh "sudo buildah bud -t $FULL_IMAGE ."
+                        sh "sudo buildah push $FULL_IMAGE"
                     }
                 }
             }
@@ -78,7 +72,6 @@ pipeline {
 
                             git config --global user.email "jenkins@ci.local"
                             git config --global user.name "Jenkins CI"
-
                             git add k8s/api-controller.yaml
                             git commit -m "Update image to $FULL_IMAGE" || echo "No changes to commit"
                             git remote set-url origin https://$GITHUB_TOKEN@github.com/bhone121212/fb-api.git
@@ -97,7 +90,7 @@ pipeline {
 
     post {
         success {
-            echo '✅ fb-api CI/CD Pipeline executed successfully!'
+            echo '✅ fbb-api CI/CD Pipeline executed successfully!'
         }
         failure {
             echo '❌ Pipeline failed. Check logs for issues.'
