@@ -30,31 +30,11 @@ pipeline {
             }
         }
 
-        // stage('Install Python Dependencies') {
-        //     steps {
-        //         script {
-        //             sh '''
-        //                 sudo apt-get update
-        //                 sudo apt-get install -y libpq-dev gcc python3-dev
-        //                 python3 -m venv venv
-        //                 . venv/bin/activate
-        //                 pip install --upgrade pip
-        //                 pip install -r app/requirements.txt
-        //             '''
-        //         }
-        //     }
-        // }
-
         stage('Run Tests') {
             steps {
                 sh 'echo "Skipping tests - handled in container if needed"'
-            }
-        }
-
-
-        stage('Run Tests') {
-            steps {
-                sh '. venv/bin/activate && pytest || true'
+                // Optional: Uncomment below if you want actual pytest to run
+                // sh '. venv/bin/activate && pytest || true'
             }
         }
 
@@ -76,10 +56,11 @@ pipeline {
                     script {
                         sh '''
                             sed -i "s|image:.*|image: $FULL_IMAGE|" k8s/api-controller.yaml
+                            sed -i "s|image:.*|image: $FULL_IMAGE|" k8s/api-service.yaml
 
                             git config --global user.email "jenkins@ci.local"
                             git config --global user.name "Jenkins CI"
-                            git add k8s/api-controller.yaml
+                            git add k8s/api-controller.yaml k8s/api-service.yaml
                             git commit -m "Update image to $FULL_IMAGE" || echo "No changes to commit"
                             git remote set-url origin https://$GITHUB_TOKEN@github.com/bhone121212/fb-api.git
                             git push origin HEAD:main
@@ -97,7 +78,7 @@ pipeline {
 
     post {
         success {
-            echo '✅ fbb-api CI/CD Pipeline executed successfully!'
+            echo '✅ fb-api CI/CD Pipeline executed successfully!'
         }
         failure {
             echo '❌ Pipeline failed. Check logs for issues.'
