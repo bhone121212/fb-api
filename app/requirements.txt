@@ -18,7 +18,7 @@ kombu==4.6.11
 MarkupSafe==1.1.1
 marshmallow==3.7.1
 marshmallow-sqlalchemy==0.23.1
-psycopg2-binary
+psycopg2
 pyrsistent==0.16.0
 python-dateutil==2.8.1
 pytz==2020.1
