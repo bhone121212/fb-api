@@ -30,20 +30,27 @@ pipeline {
             }
         }
 
-        stage('Install Python Dependencies') {
+        // stage('Install Python Dependencies') {
+        //     steps {
+        //         script {
+        //             sh '''
+        //                 sudo apt-get update
+        //                 sudo apt-get install -y libpq-dev gcc python3-dev
+        //                 python3 -m venv venv
+        //                 . venv/bin/activate
+        //                 pip install --upgrade pip
+        //                 pip install -r app/requirements.txt
+        //             '''
+        //         }
+        //     }
+        // }
+
+        stage('Run Tests') {
             steps {
-                script {
-                    sh '''
-                        sudo apt-get update
-                        sudo apt-get install -y libpq-dev gcc python3-dev
-                        python3 -m venv venv
-                        . venv/bin/activate
-                        pip install --upgrade pip
-                        pip install -r app/requirements.txt
-                    '''
-                }
+                sh 'echo "Skipping tests - handled in container if needed"'
             }
         }
+
 
         stage('Run Tests') {
             steps {
