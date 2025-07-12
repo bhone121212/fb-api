@@ -50,6 +50,25 @@ pipeline {
             }
         }
 
+        stage('Clean Up Old Images') {
+            steps {
+                script {
+                    sh '''
+                        echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only: $FULL_IMAGE"
+                        KEEP_ID=$(buildah images --format "{{.ID}} {{.Repository}}:{{.Tag}}" | grep "$FULL_IMAGE" | awk '{print $1}')
+                        echo "🆕 Keeping image ID: $KEEP_ID"
+
+                        buildah images --format "{{.ID}} {{.Repository}}" | grep "$IMAGE_NAME" | awk '{print $1}' | while read imgid; do
+                            if [ "$imgid" != "$KEEP_ID" ]; then
+                                echo "🗑️ Deleting image $imgid"
+                                buildah rmi -f "$imgid" || true
+                            fi
+                        done
+                    '''
+                }
+            }
+        }
+
         stage('Update YAML and Push to GitHub (Trigger ArgoCD)') {
             steps {
                 withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
@@ -59,6 +78,7 @@ pipeline {
 
                             sed -i "s|image:.*|image: $FULL_IMAGE|" k8s/api-controller.yaml
                             sed -i "s|image:.*|image: $FULL_IMAGE|" k8s/api-service.yaml
+                            sed -i "s|namespace:.*|namespace: $K8S_NAMESPACE|" k8s/api-service.yaml
 
                             git config --global user.email "jenkins@ci.local"
                             git config --global user.name "Jenkins CI"
