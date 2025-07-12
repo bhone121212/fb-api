@@ -4,7 +4,7 @@ metadata:
   labels:
     component: api
   name: api-service
-  namespace: crawler-apps
+  namespace: fb-crawler-apps
 spec:
   type: ClusterIP
   ports:
