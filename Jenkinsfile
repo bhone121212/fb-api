@@ -14,28 +14,30 @@ pipeline {
             }
         }
 
-        stage('Validate Branch') {
+        stage('Check Merge Condition') {
             when {
                 expression {
-                    return env.BRANCH_NAME == 'main'
+                    return env.BRANCH_NAME == 'main' && sh(script: "git log -1 --pretty=%B", returnStdout: true).contains('Merge branch \'dev\'')
                 }
             }
             steps {
-                echo "✅ Proceeding with build: Branch is 'main'"
+                echo "✅ Proceeding: This is a merge from 'dev' to 'main'"
             }
         }
 
-        stage('Skipped for other branches') {
+        stage('Skip Pipeline for Non-Merges') {
             when {
-                expression {
-                    return env.BRANCH_NAME != 'main'
+                not {
+                    expression {
+                        return env.BRANCH_NAME == 'main' && sh(script: "git log -1 --pretty=%B", returnStdout: true).contains('Merge branch \'dev\'')
+                    }
                 }
             }
             steps {
-                echo "🚫 Skipping build: Branch is '${env.BRANCH_NAME}', only 'main' is allowed"
+                echo "🚫 Skipping pipeline. Not a merge from dev to main."
                 script {
                     currentBuild.result = 'NOT_BUILT'
-                    error("Not main branch. Skipping pipeline.")
+                    error("❌ Build aborted: Not a valid dev → main merge.")
                 }
             }
         }
