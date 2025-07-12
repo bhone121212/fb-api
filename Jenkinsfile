@@ -97,10 +97,12 @@ pipeline {
                             fi
 
                             echo "🚀 Applying Kubernetes resources to $K8S_NAMESPACE"
+                            kubectl apply -n $K8S_NAMESPACE -f k8s/api-controller.yaml
                             kubectl apply -n $K8S_NAMESPACE -f k8s/api-service.yaml
                             kubectl apply -n $K8S_NAMESPACE -f k8s/rabbitmq-configmap.yaml
                             kubectl apply -n $K8S_NAMESPACE -f k8s/rabbitmq-controller.yaml
                             kubectl apply -n $K8S_NAMESPACE -f k8s/rabbitmq-service.yaml
+
                         '''
                     }
                 }
