@@ -33,8 +33,6 @@ pipeline {
         stage('Run Tests') {
             steps {
                 echo '🔎 Skipping tests - handled in container if needed'
-                // Uncomment to run actual tests:
-                // sh '. venv/bin/activate && pytest || true'
             }
         }
 
@@ -76,15 +74,20 @@ pipeline {
                         sh '''
                             echo "🔄 Updating Kubernetes YAML with image: $FULL_IMAGE"
 
+                            # Update image tag
                             sed -i "s|image:.*|image: $FULL_IMAGE|" k8s/api-controller.yaml
                             sed -i "s|image:.*|image: $FULL_IMAGE|" k8s/api-service.yaml
-                            sed -i "s|namespace:.*|namespace: $K8S_NAMESPACE|" k8s/api-service.yaml
+
+                            # Ensure all YAML files have correct namespace
+                            for file in k8s/*.yaml; do
+                                sed -i "s|^namespace:.*|namespace: $K8S_NAMESPACE|" "$file"
+                            done
 
                             git config --global user.email "jenkins@ci.local"
                             git config --global user.name "Jenkins CI"
 
-                            if ! git diff --quiet k8s/api-controller.yaml k8s/api-service.yaml; then
-                                git add k8s/api-controller.yaml k8s/api-service.yaml
+                            if ! git diff --quiet k8s/; then
+                                git add k8s/
                                 git commit -m "Update image to $FULL_IMAGE"
                                 git remote set-url origin https://$GITHUB_TOKEN@github.com/bhone121212/fb-api.git
                                 git push origin HEAD:main
