@@ -14,6 +14,34 @@ pipeline {
             }
         }
 
+    stages {
+        stage('Validate Branch') {
+            when {
+                expression {
+                    return env.BRANCH_NAME == 'main'
+                }
+            }
+            steps {
+                echo "✅ Proceeding with build: Branch is 'main'"
+                checkout scm
+            }
+        }
+
+        stage('Skipped for other branches') {
+            when {
+                expression {
+                    return env.BRANCH_NAME != 'main'
+                }
+            }
+            steps {
+                echo "🚫 Skipping build: Branch is '${env.BRANCH_NAME}', only 'main' is allowed"
+                script {
+                    currentBuild.result = 'NOT_BUILT'
+                    error("Not main branch. Skipping pipeline.")
+                }
+            }
+        }
+
         stage('Set Image Tag') {
             steps {
                 script {
@@ -48,24 +76,85 @@ pipeline {
             }
         }
 
-        stage('Clean Up Old Images') {
-            steps {
-                script {
-                    sh '''
-                        echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only: $FULL_IMAGE"
-                        KEEP_ID=$(buildah images --format "{{.ID}} {{.Repository}}:{{.Tag}}" | grep "$FULL_IMAGE" | awk '{print $1}')
-                        echo "🆕 Keeping image ID: $KEEP_ID"
+        // stage('Clean Up Old Images') {
+        //     steps {
+        //         script {
+        //             sh '''
+        //                 echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only: $FULL_IMAGE"
+        //                 KEEP_ID=$(buildah images --format "{{.ID}} {{.Repository}}:{{.Tag}}" | grep "$FULL_IMAGE" | awk '{print $1}')
+        //                 echo "🆕 Keeping image ID: $KEEP_ID"
 
-                        buildah images --format "{{.ID}} {{.Repository}}" | grep "$IMAGE_NAME" | awk '{print $1}' | while read imgid; do
-                            if [ "$imgid" != "$KEEP_ID" ]; then
-                                echo "🗑️ Deleting image $imgid"
-                                buildah rmi -f "$imgid" || true
-                            fi
-                        done
-                    '''
-                }
-            }
+        //                 buildah images --format "{{.ID}} {{.Repository}}" | grep "$IMAGE_NAME" | awk '{print $1}' | while read imgid; do
+        //                     if [ "$imgid" != "$KEEP_ID" ]; then
+        //                         echo "🗑️ Deleting image $imgid"
+        //                         buildah rmi -f "$imgid" || true
+        //                     fi
+        //                 done
+        //             '''
+        //         }
+        //     }
+        // }
+    //     stage('Clean Up Old Images') {
+    //     steps {
+    //         script {
+    //             sh '''
+    //                 echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest 5"
+
+    //                 # Get latest 5 image IDs sorted by creation time (desc)
+    //                 KEEP_IDS=$(buildah images --format "{{.CreatedAt}} {{.ID}} {{.Repository}}:{{.Tag}}" \
+    //                     | grep "$IMAGE_NAME" \
+    //                     | sort -r \
+    //                     | head -n 5 \
+    //                     | awk '{print $2}')
+
+    //                 echo "🆕 Keeping these image IDs:"
+    //                 echo "$KEEP_IDS"
+
+    //                 # Get all image IDs of this repo
+    //                 ALL_IDS=$(buildah images --format "{{.ID}} {{.Repository}}:{{.Tag}}" | grep "$IMAGE_NAME" | awk '{print $1}')
+
+    //                 for id in $ALL_IDS; do
+    //                     if ! echo "$KEEP_IDS" | grep -q "$id"; then
+    //                         echo "🗑️ Deleting old image: $id"
+    //                         buildah rmi -f "$id" || true
+    //                     fi
+    //                 done
+    //             '''
+    //         }
+    //     }
+    // }
+    stage('Clean Up Old Images') {
+    steps {
+        script {
+            sh '''
+                echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest 5"
+
+                # Get latest 5 image IDs sorted by creation time (desc)
+                KEEP_IDS=$(buildah images --format "{{.CreatedAt}} {{.ID}} {{.Repository}}:{{.Tag}}" \
+                    | grep "$IMAGE_NAME" \
+                    | sort -r \
+                    | head -n 5 \
+                    | awk '{print $2}')
+
+                echo "🆕 Keeping these image IDs:"
+                echo "$KEEP_IDS"
+
+                # Get all image IDs of this repo
+                ALL_IDS=$(buildah images --format "{{.ID}} {{.Repository}}" | grep "$IMAGE_NAME" | awk '{print $1}')
+
+                for id in $ALL_IDS; do
+                    if ! echo "$KEEP_IDS" | grep -q "$id"; then
+                        echo "🗑️ Deleting old image: $id"
+                        buildah rmi -f "$id" || true
+                    fi
+                done
+            '''
         }
+    }
+}
+
+
+
 
         stage('Update YAML and Push to GitHub (Trigger ArgoCD)') {
             steps {
