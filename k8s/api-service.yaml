@@ -3,8 +3,8 @@ kind: Service
 metadata:
   labels:
     component: api
-  name: api-service
-  namespace: crawler-apps
+  name: fb-api-service
+  namespace: fb-crawler-apps
 spec:
   type: ClusterIP
   ports:

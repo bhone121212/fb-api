@@ -4,7 +4,7 @@ metadata:
   labels:
     component: rabbitmq
   name: rabbitmq-controller
-  namespace: crawler-apps
+  namespace: fb-crawler-apps
 spec:
   replicas: 1
   template:
