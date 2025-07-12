@@ -25,15 +25,15 @@ pipeline {
                     writeFile file: VERSION_FILE, text: "$version"
                     env.IMAGE_TAG = "v${version}"
                     env.FULL_IMAGE = "${IMAGE_NAME}:${env.IMAGE_TAG}"
-                    echo "New image version: ${env.IMAGE_TAG}"
+                    echo "📦 New image version: ${env.IMAGE_TAG}"
                 }
             }
         }
 
         stage('Run Tests') {
             steps {
-                sh 'echo "Skipping tests - handled in container if needed"'
-                // Optional: Uncomment below if you want actual pytest to run
+                echo '🔎 Skipping tests - handled in container if needed'
+                // Uncomment to run actual tests:
                 // sh '. venv/bin/activate && pytest || true'
             }
         }
@@ -55,20 +55,29 @@ pipeline {
                 withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
                     script {
                         sh '''
+                            echo "🔄 Updating Kubernetes YAML with image: $FULL_IMAGE"
+
                             sed -i "s|image:.*|image: $FULL_IMAGE|" k8s/api-controller.yaml
                             sed -i "s|image:.*|image: $FULL_IMAGE|" k8s/api-service.yaml
 
                             git config --global user.email "jenkins@ci.local"
                             git config --global user.name "Jenkins CI"
-                            git add k8s/api-controller.yaml k8s/api-service.yaml
-                            git commit -m "Update image to $FULL_IMAGE" || echo "No changes to commit"
-                            git remote set-url origin https://$GITHUB_TOKEN@github.com/bhone121212/fb-api.git
-                            git push origin HEAD:main
 
-                            kubectl apply -f k8s/api-service.yaml
-                            kubectl apply -f k8s/rabbitmq-configmap.yaml
-                            kubectl apply -f k8s/rabbitmq-controller.yaml
-                            kubectl apply -f k8s/rabbitmq-service.yaml
+                            if ! git diff --quiet k8s/api-controller.yaml k8s/api-service.yaml; then
+                                git add k8s/api-controller.yaml k8s/api-service.yaml
+                                git commit -m "Update image to $FULL_IMAGE"
+                                git remote set-url origin https://$GITHUB_TOKEN@github.com/bhone121212/fb-api.git
+                                git push origin HEAD:main
+                                echo "✅ GitHub pushed with new image tag"
+                            else
+                                echo "⚠️ No changes in image tag. Skipping GitHub push."
+                            fi
+
+                            echo "🚀 Applying Kubernetes resources to $K8S_NAMESPACE"
+                            kubectl apply -n $K8S_NAMESPACE -f k8s/api-service.yaml
+                            kubectl apply -n $K8S_NAMESPACE -f k8s/rabbitmq-configmap.yaml
+                            kubectl apply -n $K8S_NAMESPACE -f k8s/rabbitmq-controller.yaml
+                            kubectl apply -n $K8S_NAMESPACE -f k8s/rabbitmq-service.yaml
                         '''
                     }
                 }
