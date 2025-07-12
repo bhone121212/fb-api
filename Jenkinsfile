@@ -14,7 +14,6 @@ pipeline {
             }
         }
 
-    stages {
         stage('Validate Branch') {
             when {
                 expression {
@@ -23,7 +22,6 @@ pipeline {
             }
             steps {
                 echo "✅ Proceeding with build: Branch is 'main'"
-                checkout scm
             }
         }
 
@@ -76,85 +74,33 @@ pipeline {
             }
         }
 
-        // stage('Clean Up Old Images') {
-        //     steps {
-        //         script {
-        //             sh '''
-        //                 echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only: $FULL_IMAGE"
-        //                 KEEP_ID=$(buildah images --format "{{.ID}} {{.Repository}}:{{.Tag}}" | grep "$FULL_IMAGE" | awk '{print $1}')
-        //                 echo "🆕 Keeping image ID: $KEEP_ID"
+        stage('Clean Up Old Images') {
+            steps {
+                script {
+                    sh '''
+                        echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest 5"
 
-        //                 buildah images --format "{{.ID}} {{.Repository}}" | grep "$IMAGE_NAME" | awk '{print $1}' | while read imgid; do
-        //                     if [ "$imgid" != "$KEEP_ID" ]; then
-        //                         echo "🗑️ Deleting image $imgid"
-        //                         buildah rmi -f "$imgid" || true
-        //                     fi
-        //                 done
-        //             '''
-        //         }
-        //     }
-        // }
-    //     stage('Clean Up Old Images') {
-    //     steps {
-    //         script {
-    //             sh '''
-    //                 echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest 5"
+                        KEEP_IDS=$(buildah images --format "{{.CreatedAt}} {{.ID}} {{.Repository}}:{{.Tag}}" \
+                            | grep "$IMAGE_NAME" \
+                            | sort -r \
+                            | head -n 5 \
+                            | awk '{print $2}')
 
-    //                 # Get latest 5 image IDs sorted by creation time (desc)
-    //                 KEEP_IDS=$(buildah images --format "{{.CreatedAt}} {{.ID}} {{.Repository}}:{{.Tag}}" \
-    //                     | grep "$IMAGE_NAME" \
-    //                     | sort -r \
-    //                     | head -n 5 \
-    //                     | awk '{print $2}')
+                        echo "🆕 Keeping these image IDs:"
+                        echo "$KEEP_IDS"
 
-    //                 echo "🆕 Keeping these image IDs:"
-    //                 echo "$KEEP_IDS"
+                        ALL_IDS=$(buildah images --format "{{.ID}} {{.Repository}}" | grep "$IMAGE_NAME" | awk '{print $1}')
 
-    //                 # Get all image IDs of this repo
-    //                 ALL_IDS=$(buildah images --format "{{.ID}} {{.Repository}}:{{.Tag}}" | grep "$IMAGE_NAME" | awk '{print $1}')
-
-    //                 for id in $ALL_IDS; do
-    //                     if ! echo "$KEEP_IDS" | grep -q "$id"; then
-    //                         echo "🗑️ Deleting old image: $id"
-    //                         buildah rmi -f "$id" || true
-    //                     fi
-    //                 done
-    //             '''
-    //         }
-    //     }
-    // }
-    stage('Clean Up Old Images') {
-    steps {
-        script {
-            sh '''
-                echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest 5"
-
-                # Get latest 5 image IDs sorted by creation time (desc)
-                KEEP_IDS=$(buildah images --format "{{.CreatedAt}} {{.ID}} {{.Repository}}:{{.Tag}}" \
-                    | grep "$IMAGE_NAME" \
-                    | sort -r \
-                    | head -n 5 \
-                    | awk '{print $2}')
-
-                echo "🆕 Keeping these image IDs:"
-                echo "$KEEP_IDS"
-
-                # Get all image IDs of this repo
-                ALL_IDS=$(buildah images --format "{{.ID}} {{.Repository}}" | grep "$IMAGE_NAME" | awk '{print $1}')
-
-                for id in $ALL_IDS; do
-                    if ! echo "$KEEP_IDS" | grep -q "$id"; then
-                        echo "🗑️ Deleting old image: $id"
-                        buildah rmi -f "$id" || true
-                    fi
-                done
-            '''
+                        for id in $ALL_IDS; do
+                            if ! echo "$KEEP_IDS" | grep -q "$id"; then
+                                echo "🗑️ Deleting old image: $id"
+                                buildah rmi -f "$id" || true
+                            fi
+                        done
+                    '''
+                }
+            }
         }
-    }
-}
-
-
-
 
         stage('Update YAML and Push to GitHub (Trigger ArgoCD)') {
             steps {
@@ -163,11 +109,9 @@ pipeline {
                         sh '''
                             echo "🔄 Updating Kubernetes YAML with image: $FULL_IMAGE"
 
-                            # Update image tag
                             sed -i "s|image:.*|image: $FULL_IMAGE|" k8s/api-controller.yaml
                             sed -i "s|image:.*|image: $FULL_IMAGE|" k8s/api-service.yaml
 
-                            # Ensure all YAML files have correct namespace
                             for file in k8s/*.yaml; do
                                 sed -i "s|^namespace:.*|namespace: $K8S_NAMESPACE|" "$file"
                             done
@@ -185,14 +129,12 @@ pipeline {
                                 echo "⚠️ No changes in image tag. Skipping GitHub push."
                             fi
 
-
                             echo "🚀 Applying Kubernetes resources to $K8S_NAMESPACE"
                             kubectl apply -n $K8S_NAMESPACE -f k8s/api-controller.yaml
                             kubectl apply -n $K8S_NAMESPACE -f k8s/api-service.yaml
                             kubectl apply -n $K8S_NAMESPACE -f k8s/rabbitmq-configmap.yaml
                             kubectl apply -n $K8S_NAMESPACE -f k8s/rabbitmq-controller.yaml
                             kubectl apply -n $K8S_NAMESPACE -f k8s/rabbitmq-service.yaml
-
                         '''
                     }
                 }
