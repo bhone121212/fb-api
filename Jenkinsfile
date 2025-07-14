@@ -166,20 +166,18 @@ pipeline {
                 script {
                     sh '''
                         set -e
+                        export BUILDAH_ISOLATION=chroot
 
                         IMAGE_NAME="bhonebhone/fb-api"
                         echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest 5"
 
-                        # Export buildah settings if required
-                        export BUILDAH_ISOLATION=chroot
-
-                        # List and sort image IDs by creation time
-                        buildah images --format "{{.ID}} {{.CreatedAt}} {{.Name}}:{{.Tag}}" \\
+                        # Get full list of image IDs sorted by CreatedAt DESC
+                        buildah images --noheading --format "{{.ID}} {{.CreatedAt}} {{.Name}}:{{.Tag}}" \\
                             | grep "$IMAGE_NAME" \\
                             | sort -rk2 \\
                             | awk '{print $1}' > all_ids.txt
 
-                        # Keep only latest 5 image IDs
+                        # Save the latest 5 to keep
                         head -n 5 all_ids.txt > keep_ids.txt
 
                         echo "🆕 Keeping these image IDs:"
@@ -191,12 +189,12 @@ pipeline {
                             buildah rmi -f "$id" || echo "⚠️ Failed to delete image $id"
                         done
 
-                        # Clean up temp files
                         rm -f all_ids.txt keep_ids.txt
                     '''
                 }
             }
         }
+
 
 
 
