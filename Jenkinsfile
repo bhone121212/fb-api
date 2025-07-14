@@ -134,22 +134,50 @@ pipeline {
             }
         }
 
+        // stage('Clean Up Old Images') {
+        //     steps {
+        //         script {
+        //             sh '''
+        //                 echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest 5"
+
+        //                 KEEP_IDS=$(buildah images --format "{{.CreatedAt}} {{.ID}} {{.Repository}}:{{.Tag}}" \
+        //                     | grep "$IMAGE_NAME" \
+        //                     | sort -r \
+        //                     | head -n 5 \
+        //                     | awk '{print $2}')
+
+        //                 echo "🆕 Keeping these image IDs:"
+        //                 echo "$KEEP_IDS"
+
+        //                 ALL_IDS=$(buildah images --format "{{.ID}} {{.Repository}}" | grep "$IMAGE_NAME" | awk '{print $1}')
+
+        //                 for id in $ALL_IDS; do
+        //                     if ! echo "$KEEP_IDS" | grep -q "$id"; then
+        //                         echo "🗑️ Deleting old image: $id"
+        //                         buildah rmi -f "$id" || true
+        //                     fi
+        //                 done
+        //             '''
+        //         }
+        //     }
+        // }
         stage('Clean Up Old Images') {
             steps {
                 script {
                     sh '''
                         echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest 5"
 
-                        KEEP_IDS=$(buildah images --format "{{.CreatedAt}} {{.ID}} {{.Repository}}:{{.Tag}}" \
-                            | grep "$IMAGE_NAME" \
-                            | sort -r \
-                            | head -n 5 \
-                            | awk '{print $2}')
+                        # Get list of image IDs sorted by creation date (newest first)
+                        IMAGE_IDS=$(buildah images --sort created --format "{{.ID}} {{.Repository}}:{{.Tag}}" | grep "$IMAGE_NAME")
+
+                        # Get the image IDs (first column) and keep top 5
+                        KEEP_IDS=$(echo "$IMAGE_IDS" | head -n 5 | awk '{print $1}')
 
                         echo "🆕 Keeping these image IDs:"
                         echo "$KEEP_IDS"
 
-                        ALL_IDS=$(buildah images --format "{{.ID}} {{.Repository}}" | grep "$IMAGE_NAME" | awk '{print $1}')
+                        # Delete any others
+                        ALL_IDS=$(echo "$IMAGE_IDS" | awk '{print $1}')
 
                         for id in $ALL_IDS; do
                             if ! echo "$KEEP_IDS" | grep -q "$id"; then
@@ -161,6 +189,7 @@ pipeline {
                 }
             }
         }
+
 
         stage('Update YAML and Push to GitHub (Trigger ArgoCD)') {
             steps {
