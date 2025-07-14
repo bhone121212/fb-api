@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         IMAGE_NAME = 'bhonebhone/fb-api'
-        K8S_NAMESPACE = "localhost/fb-crawler-apps"
+        K8S_NAMESPACE = "fb-crawler-apps"
         VERSION_FILE = 'version.txt'
     }
 
@@ -168,10 +168,11 @@ pipeline {
                         set -e
                         export BUILDAH_ISOLATION=chroot
 
-                        echo "🧹 Cleaning up old images matching 'bhonebhone/fb-api', keeping only the latest 5"
+                        IMAGE_NAME="localhost/bhonebhone/fb-api"
+                        echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest 5"
 
-                        buildah images --json | jq -r '
-                        .[] | select(.Name | test("bhonebhone/fb-api")) | "\\(.Created) \\(.Id)"
+                        buildah images --json | jq -r --arg IMAGE_NAME "$IMAGE_NAME" '
+                        .[] | select(.Name == $IMAGE_NAME) | "\(.CreatedAt) \(.Id)"
                         ' | sort -r | awk '{print $2}' > all_ids.txt
 
                         head -n 5 all_ids.txt > keep_ids.txt
@@ -182,6 +183,10 @@ pipeline {
                         echo "🗑️ Checking for deletable old image IDs:"
                         grep -Fxv -f keep_ids.txt all_ids.txt > delete_ids.txt || true
                         cat delete_ids.txt
+
+                        if [ ! -s delete_ids.txt ]; then
+                        echo "✅ No old images to delete."
+                        fi
 
                         while read -r id; do
                             if [ -n "$id" ]; then
@@ -195,7 +200,6 @@ pipeline {
                 }
             }
         }
-
 
 
         stage('Update YAML and Push to GitHub (Trigger ArgoCD)') {
