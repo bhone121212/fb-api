@@ -43,38 +43,56 @@ pipeline {
         //         }
         //     }
         // }
+        // stage('Check Merge Condition') {
+        //     when {
+        //         expression {
+        //             def branch = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+        //             def msg = sh(script: "git log -1 --pretty=%B", returnStdout: true).trim()
+        //             echo "🔍 Branch: ${branch}"
+        //             echo "🔍 Commit message: ${msg}"
+        //             return branch == 'main' && msg.contains('Merge pull request') && msg.contains('bhone121212/dev')
+        //         }
+        //     }
+        //     steps {
+        //         echo "✅ Proceeding: This is a merge from 'dev' to 'main'"
+        //     }
+        // }
+
+        // stage('Skip Pipeline for Non-Merges') {
+        //     when {
+        //         not {
+        //             expression {
+        //                 def branch = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+        //                 def msg = sh(script: "git log -1 --pretty=%B", returnStdout: true).trim()
+        //                 echo "🔍 Branch: ${branch}"
+        //                 echo "🔍 Commit message: ${msg}"
+        //                 return branch == 'main' && msg.contains('Merge pull request') && msg.contains('bhone121212/dev')
+        //             }
+        //         }
+        //     }
+        //     steps {
+        //         echo "🚫 Skipping pipeline. Not a merge from dev to main."
+        //         script {
+        //             currentBuild.result = 'NOT_BUILT'
+        //             error("❌ Build aborted: Not a valid dev → main merge.")
+        //         }
+        //     }
+        // }
         stage('Check Merge Condition') {
-            when {
-                expression {
-                    def branch = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+            steps {
+                script {
+                    def branch = sh(script: "git branch -r --contains HEAD | grep origin/main || true", returnStdout: true).trim()
                     def msg = sh(script: "git log -1 --pretty=%B", returnStdout: true).trim()
                     echo "🔍 Branch: ${branch}"
                     echo "🔍 Commit message: ${msg}"
-                    return branch == 'main' && msg.contains('Merge pull request') && msg.contains('bhone121212/dev')
-                }
-            }
-            steps {
-                echo "✅ Proceeding: This is a merge from 'dev' to 'main'"
-            }
-        }
 
-        stage('Skip Pipeline for Non-Merges') {
-            when {
-                not {
-                    expression {
-                        def branch = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
-                        def msg = sh(script: "git log -1 --pretty=%B", returnStdout: true).trim()
-                        echo "🔍 Branch: ${branch}"
-                        echo "🔍 Commit message: ${msg}"
-                        return branch == 'main' && msg.contains('Merge pull request') && msg.contains('bhone121212/dev')
+                    if (branch.contains("origin/main") && msg.contains("bhone121212/dev")) {
+                        echo "✅ This is a merge from 'dev' to 'main'. Proceeding..."
+                    } else {
+                        echo "🚫 Not a merge from dev to main. Aborting pipeline."
+                        currentBuild.result = 'NOT_BUILT'
+                        error("❌ Build skipped: Not a dev → main merge.")
                     }
-                }
-            }
-            steps {
-                echo "🚫 Skipping pipeline. Not a merge from dev to main."
-                script {
-                    currentBuild.result = 'NOT_BUILT'
-                    error("❌ Build aborted: Not a valid dev → main merge.")
                 }
             }
         }
