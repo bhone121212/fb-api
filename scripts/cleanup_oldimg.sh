@@ -8,7 +8,7 @@ KEEP_COUNT=5
 echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest $KEEP_COUNT"
 
 buildah images --json | jq -r '
-  .[] | select(.Name == "'"$IMAGE_NAME"'") | "\(.CreatedAt) \(.Id)"
+  .[] | select(.Repository == "'"$IMAGE_NAME"'") | "\(.CreatedAt) \(.Id)"
 ' | sort -r | awk '{print $2}' > all_ids.txt
 
 head -n $KEEP_COUNT all_ids.txt > keep_ids.txt
