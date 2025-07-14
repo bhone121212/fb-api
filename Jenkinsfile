@@ -171,9 +171,12 @@ pipeline {
                         IMAGE_NAME="localhost/bhonebhone/fb-api"
                         echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest 5"
 
-                        buildah images --json | jq -r --arg IMAGE_NAME "$IMAGE_NAME" '
-                        .[] | select(.Name == $IMAGE_NAME) | "\(.CreatedAt) \(.Id)"
-                        ' | sort -r | awk '{print $2}' > all_ids.txt
+                        jq_filter=$(cat <<EOF
+        .[] | select(.Name == "$IMAGE_NAME") | "\\(.CreatedAt) \\(.Id)"
+        EOF
+        )
+
+                        buildah images --json | jq -r "$jq_filter" | sort -r | awk '{print $2}' > all_ids.txt
 
                         head -n 5 all_ids.txt > keep_ids.txt
 
