@@ -161,43 +161,52 @@ pipeline {
         //         }
         //     }
         // }
+        // stage('Clean Up Old Images') {
+        //     steps {
+        //         script {
+        //             sh '''#!/bin/bash
+        //                 set -e
+        //                 export BUILDAH_ISOLATION=chroot
+
+        //                 IMAGE_NAME="localhost/bhonebhone/fb-api"
+        //                 echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest 5"
+
+        //                 jq_filter=$(cat <<EOF
+        // .[] | select(.Name == "$IMAGE_NAME") | "\\(.CreatedAt) \\(.Id)"
+        // EOF
+        // )
+
+        //                 buildah images --json | jq -r "$jq_filter" | sort -r | awk '{print $2}' > all_ids.txt
+
+        //                 head -n 5 all_ids.txt > keep_ids.txt
+
+        //                 echo "🆕 Keeping these image IDs:"
+        //                 cat keep_ids.txt
+
+        //                 echo "🗑️ Checking for deletable old image IDs:"
+        //                 grep -Fxv -f keep_ids.txt all_ids.txt > delete_ids.txt || true
+        //                 cat delete_ids.txt
+
+        //                 if [ ! -s delete_ids.txt ]; then
+        //                 echo "✅ No old images to delete."
+        //                 fi
+
+        //                 while read -r id; do
+        //                     if [ -n "$id" ]; then
+        //                         echo "🗑️ Deleting image: $id"
+        //                         buildah rmi -f "$id" || echo "⚠️ Could not delete $id"
+        //                     fi
+        //                 done < delete_ids.txt
+
+        //                 rm -f all_ids.txt keep_ids.txt delete_ids.txt
+        //             '''
+        //         }
+        //     }
+        // }
+
         stage('Clean Up Old Images') {
             steps {
-                script {
-                    sh '''#!/bin/bash
-                        set -e
-                        export BUILDAH_ISOLATION=chroot
-
-                        IMAGE_NAME="localhost/bhonebhone/fb-api"
-                        echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest 5"
-
-                        buildah images --json | jq -r --arg IMAGE_NAME "$IMAGE_NAME" '
-                        .[] | select(.Name == $IMAGE_NAME) | "\(.CreatedAt) \(.Id)"
-                        ' | sort -r | awk '{print $2}' > all_ids.txt
-
-                        head -n 5 all_ids.txt > keep_ids.txt
-
-                        echo "🆕 Keeping these image IDs:"
-                        cat keep_ids.txt
-
-                        echo "🗑️ Checking for deletable old image IDs:"
-                        grep -Fxv -f keep_ids.txt all_ids.txt > delete_ids.txt || true
-                        cat delete_ids.txt
-
-                        if [ ! -s delete_ids.txt ]; then
-                        echo "✅ No old images to delete."
-                        fi
-
-                        while read -r id; do
-                            if [ -n "$id" ]; then
-                                echo "🗑️ Deleting image: $id"
-                                buildah rmi -f "$id" || echo "⚠️ Could not delete $id"
-                            fi
-                        done < delete_ids.txt
-
-                        rm -f all_ids.txt keep_ids.txt delete_ids.txt
-                    '''
-                }
+                sh './scripts/cleanup-images.sh'
             }
         }
 
