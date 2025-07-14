@@ -206,9 +206,15 @@ pipeline {
 
         stage('Clean Up Old Images') {
             steps {
-                sh './scripts/cleanup-images.sh'
+                dir("${env.WORKSPACE}") {
+                    sh '''
+                        chmod +x ./scripts/cleanup-images.sh
+                        ./scripts/cleanup-images.sh
+                    '''
+                }
             }
         }
+
 
 
         stage('Update YAML and Push to GitHub (Trigger ArgoCD)') {
