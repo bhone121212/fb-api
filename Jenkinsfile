@@ -48,7 +48,7 @@ pipeline {
                 expression {
                     def branch = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
                     def msg = sh(script: "git log -1 --pretty=%B", returnStdout: true).trim()
-                    return branch == 'main' && msg.contains('from bhone121212/dev')
+                    return branch == 'main' && msg.contains('Merge pull request') && msg.contains('from bhone121212/dev')
                 }
             }
             steps {
@@ -62,7 +62,7 @@ pipeline {
                     expression {
                         def branch = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
                         def msg = sh(script: "git log -1 --pretty=%B", returnStdout: true).trim()
-                        return branch == 'main' && msg.contains('from bhone121212/dev')
+                        return branch == 'main' && msg.contains('Merge pull request') && msg.contains('from bhone121212/dev')
                     }
                 }
             }
@@ -74,6 +74,7 @@ pipeline {
                 }
             }
         }
+
 
 
         stage('Set Image Tag') {
