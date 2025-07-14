@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 export BUILDAH_ISOLATION=chroot
 
 IMAGE_NAME="localhost/bhonebhone/fb-api"
@@ -7,28 +7,49 @@ KEEP_COUNT=5
 
 echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest $KEEP_COUNT"
 
-buildah images --json | jq -r '
-  .[] | select(.Repository == "'"$IMAGE_NAME"'") | "\(.Created) \(.Id)"
-' | sort -nr | awk '{print $2}' > all_ids.txt
+# Step 1: Get list of images sorted by created time (newest first)
+mapfile -t IMAGE_LIST < <(
+  buildah images --format '{{.Created}} {{.ID}} {{.Name}}:{{.Tag}}' |
+  grep "$IMAGE_NAME" |
+  sort -r
+)
 
-head -n $KEEP_COUNT all_ids.txt > keep_ids.txt
+# Step 2: Split into IDs and manage keep/delete sets
+mkdir -p /tmp/buildah-cleanup
+KEEP_FILE="/tmp/buildah-cleanup/keep_ids.txt"
+DELETE_FILE="/tmp/buildah-cleanup/delete_ids.txt"
+
+> "$KEEP_FILE"
+> "$DELETE_FILE"
+
+for i in "${!IMAGE_LIST[@]}"; do
+  id=$(echo "${IMAGE_LIST[$i]}" | awk '{print $2}')
+  if [ "$i" -lt "$KEEP_COUNT" ]; then
+    echo "$id" >> "$KEEP_FILE"
+  else
+    echo "$id" >> "$DELETE_FILE"
+  fi
+done
 
 echo "🆕 Keeping these image IDs:"
-cat keep_ids.txt
+cat "$KEEP_FILE"
 
-echo "🗑️ Checking for deletable old image IDs:"
-grep -Fxv -f keep_ids.txt all_ids.txt > delete_ids.txt || true
-cat delete_ids.txt
+echo "🗑️ Deleting these image IDs:"
+cat "$DELETE_FILE"
 
-if [ ! -s delete_ids.txt ]; then
+# Step 3: Delete old image IDs
+if [[ -s "$DELETE_FILE" ]]; then
+  while read -r id; do
+    if [ -n "$id" ]; then
+      echo "🗑️ Deleting image: $id"
+      buildah rmi -f "$id" || echo "⚠️ Failed to delete image $id"
+    fi
+  done < "$DELETE_FILE"
+else
   echo "✅ No old images to delete."
 fi
 
-while read -r id; do
-    if [ -n "$id" ]; then
-        echo "🗑️ Deleting image: $id"
-        sudo buildah rmi -f "$id" || echo "⚠️ Could not delete $id"
-    fi
-done < delete_ids.txt
+# Step 4: Cleanup
+rm -rf /tmp/buildah-cleanup
 
-rm -f all_ids.txt keep_ids.txt delete_ids.txt
+echo "✅ Image cleanup complete."
