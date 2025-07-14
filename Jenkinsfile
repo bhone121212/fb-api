@@ -165,32 +165,39 @@ pipeline {
             steps {
                 script {
                     sh '''
+                        set -e
+
                         IMAGE_NAME="bhonebhone/fb-api"
                         echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest 5"
 
-                        # Extract ID, CreatedAt, and Name:Tag, sort by CreatedAt descending
+                        # Export buildah settings if required
+                        export BUILDAH_ISOLATION=chroot
+
+                        # List and sort image IDs by creation time
                         buildah images --format "{{.ID}} {{.CreatedAt}} {{.Name}}:{{.Tag}}" \\
                             | grep "$IMAGE_NAME" \\
                             | sort -rk2 \\
                             | awk '{print $1}' > all_ids.txt
 
-                        # Keep only latest 5
+                        # Keep only latest 5 image IDs
                         head -n 5 all_ids.txt > keep_ids.txt
 
                         echo "🆕 Keeping these image IDs:"
                         cat keep_ids.txt
 
                         echo "🗑️ Deleting old image IDs:"
-                        grep -Fxv -f keep_ids.txt all_ids.txt | while read id; do
+                        grep -Fxv -f keep_ids.txt all_ids.txt | while read -r id; do
                             echo "Deleting image: $id"
-                            buildah rmi -f "$id" || true
+                            buildah rmi -f "$id" || echo "⚠️ Failed to delete image $id"
                         done
 
+                        # Clean up temp files
                         rm -f all_ids.txt keep_ids.txt
                     '''
                 }
             }
         }
+
 
 
         stage('Update YAML and Push to GitHub (Trigger ArgoCD)') {
