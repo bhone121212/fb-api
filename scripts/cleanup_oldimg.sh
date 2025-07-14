@@ -7,7 +7,6 @@ KEEP_COUNT=5
 
 echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest $KEEP_COUNT"
 
-# Sort by actual timestamp
 buildah images --json | jq -r '
   .[] | select(.Repository == "'"$IMAGE_NAME"'") | "\(.Created) \(.Id)"
 ' | sort -nr | awk '{print $2}' > all_ids.txt
@@ -28,7 +27,7 @@ fi
 while read -r id; do
     if [ -n "$id" ]; then
         echo "🗑️ Deleting image: $id"
-        buildah rmi -f "$id" || echo "⚠️ Could not delete $id"
+        sudo buildah rmi -f "$id" || echo "⚠️ Could not delete $id"
     fi
 done < delete_ids.txt
 
