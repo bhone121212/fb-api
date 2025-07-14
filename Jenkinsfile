@@ -165,30 +165,32 @@ pipeline {
             steps {
                 script {
                     sh '''
+                        IMAGE_NAME="bhonebhone/fb-api"
                         echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest 5"
 
-                        # Get list of image IDs sorted by creation date (newest first)
-                        IMAGE_IDS=$(buildah images --sort created --format "{{.ID}} {{.Repository}}:{{.Tag}}" | grep "$IMAGE_NAME")
+                        buildah images --format "{{.ID}} {{.Created}} {{.Repository}}:{{.Tag}}" \
+                            | grep "$IMAGE_NAME" \
+                            | awk '{print $2" "$1" "$3}' \
+                            | sort -r \
+                            | awk '{print $2}' > all_ids.txt
 
-                        # Get the image IDs (first column) and keep top 5
-                        KEEP_IDS=$(echo "$IMAGE_IDS" | head -n 5 | awk '{print $1}')
+                        head -n 5 all_ids.txt > keep_ids.txt
 
                         echo "🆕 Keeping these image IDs:"
-                        echo "$KEEP_IDS"
+                        cat keep_ids.txt
 
-                        # Delete any others
-                        ALL_IDS=$(echo "$IMAGE_IDS" | awk '{print $1}')
-
-                        for id in $ALL_IDS; do
-                            if ! echo "$KEEP_IDS" | grep -q "$id"; then
-                                echo "🗑️ Deleting old image: $id"
-                                buildah rmi -f "$id" || true
-                            fi
+                        echo "🗑️ Deleting old image IDs:"
+                        grep -Fxv -f keep_ids.txt all_ids.txt | while read id; do
+                            echo "Deleting image: $id"
+                            buildah rmi -f "$id" || true
                         done
+
+                        rm -f all_ids.txt keep_ids.txt
                     '''
                 }
             }
         }
+
 
 
         stage('Update YAML and Push to GitHub (Trigger ArgoCD)') {
