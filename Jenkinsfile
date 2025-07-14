@@ -14,11 +14,41 @@ pipeline {
             }
         }
 
+        // stage('Check Merge Condition') {
+        //     when {
+        //         expression {
+        //             def msg = sh(script: "git log -1 --pretty=%B", returnStdout: true).trim()
+        //             return env.BRANCH_NAME == 'main' && msg.contains('from bhone121212/dev')
+        //         }
+        //     }
+        //     steps {
+        //         echo "✅ Proceeding: This is a merge from 'dev' to 'main'"
+        //     }
+        // }
+
+        // stage('Skip Pipeline for Non-Merges') {
+        //     when {
+        //         not {
+        //             expression {
+        //                 def msg = sh(script: "git log -1 --pretty=%B", returnStdout: true).trim()
+        //                 return env.BRANCH_NAME == 'main' && msg.contains('from bhone121212/dev')
+        //             }
+        //         }
+        //     }
+        //     steps {
+        //         echo "🚫 Skipping pipeline. Not a merge from dev to main."
+        //         script {
+        //             currentBuild.result = 'NOT_BUILT'
+        //             error("❌ Build aborted: Not a valid dev → main merge.")
+        //         }
+        //     }
+        // }
         stage('Check Merge Condition') {
             when {
                 expression {
+                    def branch = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
                     def msg = sh(script: "git log -1 --pretty=%B", returnStdout: true).trim()
-                    return env.BRANCH_NAME == 'main' && msg.contains('from bhone121212/dev')
+                    return branch == 'main' && msg.contains('from bhone121212/dev')
                 }
             }
             steps {
@@ -30,8 +60,9 @@ pipeline {
             when {
                 not {
                     expression {
+                        def branch = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
                         def msg = sh(script: "git log -1 --pretty=%B", returnStdout: true).trim()
-                        return env.BRANCH_NAME == 'main' && msg.contains('from bhone121212/dev')
+                        return branch == 'main' && msg.contains('from bhone121212/dev')
                     }
                 }
             }
@@ -43,6 +74,7 @@ pipeline {
                 }
             }
         }
+
 
         stage('Set Image Tag') {
             steps {
