@@ -208,8 +208,8 @@ pipeline {
             steps {
                 dir("${env.WORKSPACE}") {
                     sh '''
-                        chmod +x ./scripts/cleanup-images.sh
-                        ./scripts/cleanup-images.sh
+                        chmod +x ./scripts/cleanup_oldimg.sh
+                        ./scripts/cleanup_oldimg.sh
                     '''
                 }
             }
