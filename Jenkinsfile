@@ -17,7 +17,8 @@ pipeline {
         stage('Check Merge Condition') {
             when {
                 expression {
-                    return env.BRANCH_NAME == 'main' && sh(script: "git log -1 --pretty=%B", returnStdout: true).contains('Merge branch \'dev\'')
+                    def msg = sh(script: "git log -1 --pretty=%B", returnStdout: true).trim()
+                    return env.BRANCH_NAME == 'main' && msg.contains('from bhone121212/dev')
                 }
             }
             steps {
@@ -29,7 +30,8 @@ pipeline {
             when {
                 not {
                     expression {
-                        return env.BRANCH_NAME == 'main' && sh(script: "git log -1 --pretty=%B", returnStdout: true).contains('Merge branch \'dev\'')
+                        def msg = sh(script: "git log -1 --pretty=%B", returnStdout: true).trim()
+                        return env.BRANCH_NAME == 'main' && msg.contains('from bhone121212/dev')
                     }
                 }
             }
