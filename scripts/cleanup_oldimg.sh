@@ -3,7 +3,7 @@ set -euo pipefail
 
 # === CONFIG ===
 IMAGE_NAME="localhost/bhonebhone/fb-api"
-KEEP_COUNT=5
+KEEP_COUNT=3
 
 echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest $KEEP_COUNT"
 
