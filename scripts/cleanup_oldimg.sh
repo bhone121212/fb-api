@@ -1,7 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-# Use chroot isolation for Buildah
+# === Require root ===
+if [ "$EUID" -ne 0 ]; then
+  echo "⚠️ Please run as root. Exiting."
+  exit 1
+fi
+
+# === Buildah settings ===
 export BUILDAH_ISOLATION=chroot
 
 # === CONFIG ===
@@ -65,6 +71,7 @@ fi
 # === Step 5: Cleanup temp files ===
 rm -rf "$WORK_DIR"
 echo "✅ Image cleanup complete."
+
 
 
 
