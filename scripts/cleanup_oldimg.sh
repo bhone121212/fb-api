@@ -1,28 +1,19 @@
 #!/bin/bash
 set -euo pipefail
 
-# === Require root ===
-if [ "$EUID" -ne 0 ]; then
-  echo "⚠️ Please run as root. Exiting."
-  exit 1
-fi
-
-# === Buildah settings ===
-export BUILDAH_ISOLATION=chroot
-
 # === CONFIG ===
-IMAGE_NAME="bhonebhone/fb-api"   # Don't include "localhost/" prefix here
+IMAGE_NAME="localhost/bhonebhone/fb-api"
 KEEP_COUNT=5
 
 echo "🧹 Cleaning up old images for $IMAGE_NAME, keeping only the latest $KEEP_COUNT"
 
-# === DEBUG: List All Images ===
-echo "🔍 Available Buildah images:"
-buildah images
+# === Step 1: Get all buildah images (as root) ===
+echo "🔍 Available Buildah images (sudo):"
+sudo buildah images
 
-# === Step 1: Get list of matching images sorted by creation time ===
+# === Step 2: Filter and sort matching images ===
 mapfile -t IMAGE_LIST < <(
-  buildah images --format '{{.Created}} {{.ID}} {{.Name}}:{{.Tag}}' |
+  sudo buildah images --format '{{.Created}} {{.ID}} {{.Name}}:{{.Tag}}' |
   grep -F "$IMAGE_NAME" |
   sort -r
 )
@@ -32,7 +23,7 @@ if [[ "${#IMAGE_LIST[@]}" -eq 0 ]]; then
   exit 0
 fi
 
-# === Step 2: Split into KEEP and DELETE lists ===
+# === Step 3: Split into KEEP and DELETE lists ===
 WORK_DIR=$(mktemp -d -t buildah-cleanup-XXXXXXXX)
 KEEP_FILE="$WORK_DIR/keep_ids.txt"
 DELETE_FILE="$WORK_DIR/delete_ids.txt"
@@ -49,26 +40,25 @@ for i in "${!IMAGE_LIST[@]}"; do
   fi
 done
 
-# === Step 3: Display IDs ===
 echo "🆕 Keeping these image IDs:"
-cat "$KEEP_FILE" || echo "(none)"
+cat "$KEEP_FILE"
 
 echo "🗑️ Deleting these image IDs:"
-cat "$DELETE_FILE" || echo "(none)"
+cat "$DELETE_FILE"
 
-# === Step 4: Delete old image IDs ===
+# === Step 4: Delete old images with sudo ===
 if [[ -s "$DELETE_FILE" ]]; then
   while read -r id; do
     if [ -n "$id" ]; then
       echo "🗑️ Deleting image: $id"
-      buildah rmi -f "$id" || echo "⚠️ Failed to delete image $id"
+      sudo buildah rmi -f "$id" || echo "⚠️ Failed to delete image $id"
     fi
   done < "$DELETE_FILE"
 else
   echo "✅ No old images to delete."
 fi
 
-# === Step 5: Cleanup temp files ===
+# === Step 5: Cleanup ===
 rm -rf "$WORK_DIR"
 echo "✅ Image cleanup complete."
 
