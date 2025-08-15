@@ -14,11 +14,12 @@ spec:
         component: rabbitmq
     spec:
       containers:
-        - image: rabbitmq
-          name: rabbitmq
+        - name: rabbitmq
+          image: rabbitmq:3-management
           ports:
-            - containerPort: 5672
-            - containerPort: 15672  # For management plugin
+            - containerPort: 5672   # AMQP
+            - containerPort: 15672  # Management UI
+            - containerPort: 15692  # (optional) Prometheus metrics if you want
           env:
             - name: RABBITMQ_DEFAULT_USER
               value: rabbitmq
