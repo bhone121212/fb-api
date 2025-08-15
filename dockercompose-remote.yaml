@@ -1,0 +1,78 @@
+version: '3'
+services:
+  # Транспортер сообщений (Message transporter)
+  queue:
+    image: rabbitmq:3-management
+    privileged: true
+    security_opt:
+      - seccomp=unconfined
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - fb_network
+    dns:
+      - 8.8.8.8
+
+  # API для взаимодействия с микросервисом (API for interacting with a microservice)
+  api:
+    build:
+      context: .
+      dockerfile: ./api/Dockerfile
+    ports:
+      - "80:80"
+    environment:
+      - FBS_DATABASE_POSTGRESQL_SERVICE_HOST=postgresql://fbs:yah7WUy1Oi8G@192.168.11.202:5432/fbs
+      - FBS_DATABASE_POSTGRESQL_SLAVE_SERVICE_HOST=postgresql://fbs:yah7WUy1Oi8G@192.168.11.202:5432/fbs
+      - RABBITMQ_SERVICE_SERVICE_HOST=queue:5672
+    depends_on:
+      - queue
+    volumes:
+      - ./api/app:/app
+    networks:
+      - fb_network
+    dns:
+      - 8.8.8.8
+
+  # Сервис распределения задач по очередям (Service for distributing tasks by queues)
+  producer:
+    build:
+      context: .
+      dockerfile: ./producer/Dockerfile
+    environment:
+      - FBS_DATABASE_POSTGRESQL_SERVICE_HOST=postgresql://fbs:yah7WUy1Oi8G@192.168.11.202:5432/fbs
+      - FBS_DATABASE_POSTGRESQL_SLAVE_SERVICE_HOST=postgresql://fbs:yah7WUy1Oi8G@192.168.11.202:5432/fbs
+      - RABBITMQ_SERVICE_SERVICE_HOST=queue:5672
+    depends_on:
+      - queue
+    volumes:
+      - ./producer/app:/app
+    networks:
+      - fb_network
+    dns:
+      - 8.8.8.8
+
+  # Сервис по сбору данных с ФБ (FB data collection service)
+  worker:
+    build:
+      context: .
+      dockerfile: ./worker/Dockerfile
+    environment:
+      - FBS_DATABASE_POSTGRESQL_SERVICE_HOST=postgresql://fbs:yah7WUy1Oi8G@192.168.11.202:5432/fbs
+      - RABBITMQ_SERVICE_SERVICE_HOST=queue:5672
+    depends_on:
+      - queue
+    command: bash -c "nohup node ./proxy/proxy.js > ./proxy/log & /usr/local/bin/celery -A app worker --loglevel=info --concurrency=1 --max-tasks-per-child=1"
+    volumes:
+      - ./worker/app:/usr/src/app
+    networks:
+      - fb_network
+    dns:
+      - 8.8.8.8
+
+networks:
+  fb_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
