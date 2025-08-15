@@ -78,6 +78,9 @@ pipeline {
         //         }
         //     }
         // }
+
+        
+        // ************************************************************************This is Github Merge Condidtion ************************************************************************
         stage('Check Merge Condition') {
             steps {
                 script {
@@ -96,9 +99,6 @@ pipeline {
                 }
             }
         }
-
-
-
 
         stage('Set Image Tag') {
             steps {
